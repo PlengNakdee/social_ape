@@ -23,12 +23,17 @@ exports.postOneScream = (request, response) => {
     const newScream = {
         body: request.body.body,
         userHandle: request.user.handle,
-        createdAt: new Date().toISOString()
+        userImage: request.user.imageUrl,
+        createdAt: new Date().toISOString(),
+        likeCount: 0,
+        commentCount: 0
     }
     db.collection('screams')
     .add(newScream)
     .then(doc => {
-        response.json({message: `document ${doc.id} created succesfully`})
+        const resScream = newScream
+        resScream.screamId = doc.id
+        response.json(resScream)
     })
 }
 
@@ -57,6 +62,37 @@ exports.getScream = (request, response) => {
     })
 }
 
+exports.commentOnScream = (request, response) => {
+    if(request.body.body.trim() === '') 
+        return response.status(400).json({error: 'Must not be empty'})
+
+    const newComment = {
+        body: request.body.body,
+        createdAt: new Date().toISOString(),
+        screamId: request.params.screamId,
+        userHandle: request.user.handle,
+        userImage: request.user.imageUrl
+    }
+    db.doc(`/screams/${request.params.screamId}`).get()
+    .then((doc) => {
+        if(!doc.exists) {
+            return response.status(404).json({error: 'Scream not found'})
+        }
+        return db.collection('comments').add(newComment)
+    })
+    .then(() => {
+        response.json(newComment)
+    })
+    .catch(err => {
+        console.log(err)
+        response.status(500).json({error: err.code})
+    })
+}
+
+exports.likeScream = (request, response) => {
+    const likeDocument = db.collection('likes').where('userHandle', '==', request.user.handle)
+    .where('screamId', '==', request.params.screamId).limit(1)
+}
 
 
 
